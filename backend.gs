@@ -1,10 +1,10 @@
 var SHEET_NAME = "1";
 var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property service
-
+ 
 function doGet(e){
   return handleResponse(e);
 }
-
+ 
 
 function addOrder(data) {
   return returnResponse("success", "Your order has been added!");
@@ -15,24 +15,27 @@ function getOrder(data) {
 }
 
 function handleResponse(e) {
-
+  
   var data = e.parameter;
   if (data['addOrder']) {
     return addOrder(data['addOrder']);
   } else if (data['getOrder']) {
     return getOrder(data['getOrder']);
-  } else {
-    method = data.keys(data)[0];
-    return returnError('Method "' + method + '" Not Allowed');
+  } else { 
+    return returnError('Method Not Allowed');
   }
 }
-
+ 
 function returnResponse(result_type, content) {
   return ContentService
     .createTextOutput(JSON.stringify({"result": result_type, "content": content}))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function returnError(error) {
+  return returnResponse("error", error);
+}
+  
 function legacy(e) {
   // shortly after my original solution Google announced the LockService[1]
   // this prevents concurrent access overwritting data
@@ -40,10 +43,10 @@ function legacy(e) {
   // we want a public lock, one that locks for all invocations
  //  var lock = LockService.getPublicLock();
   var doc = SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
-
+  
   // next set where we write the data - you could write to multiple/alternate destinations
   var sheet = doc.getActiveSheet();
-
+  
   // we'll assume header is in row 1 but you can override with header_row in GET/POST data
   var row = [];
   var data = JSON.stringify(e.parameter);
@@ -54,7 +57,7 @@ function legacy(e) {
 
   try {
       var lock = LockService.getScriptLock();
-      lock.waitLock(3000);
+      lock.waitLock(3000); 
       sheet.appendRow(row);
     // return json success results
     return ContentService
@@ -69,7 +72,7 @@ function legacy(e) {
     lock.releaseLock();
   }
 }
-
+ 
 function setup() {
     var doc = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/121dxHWUAqiKaDR7oD4rn9M-QlxG_k6rgkg28jNpDTv4/edit');
     SCRIPT_PROP.setProperty("key", doc.getId());
