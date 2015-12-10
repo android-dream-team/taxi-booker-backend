@@ -12,10 +12,14 @@ function getEnvironment(data) {
     return environment;
 }
 
-function getTable(db_name) {
-    var db = SpreadsheetApp.openById(SCRIPT_PROP.getProperty(db_name));
+function getTable(environment) {
+    var db = SpreadsheetApp.openById(SCRIPT_PROP.getProperty(environment));
     var table = db.getActiveSheet();
     return table;
+}
+
+function getCalendar(environment) {
+    return CalendarApp.getCalendarById(SCRIPT_PROP.getProperty(environment + 'Calendar'));
 }
 
 function addOrder(data) {
@@ -59,10 +63,12 @@ function returnError(error) {
     return returnResponse("error", error);
 }
 
-function insertOrderToDatabase(db_name, data) {
-    var table = getTable(db_name);
+function insertOrderToDatabase(environment, data) {
+    var table = getTable(environment);
+    var calendar = getCalendar(environment);
     var row = [];
-    row.push(new Date());
+    var now = new Date()
+    row.push(now);
     row.push(data['phoneNumber']);
     row.push(data['orderId']);
     var geoAddressFrom = geocodeAddress(data['addressFrom']);
@@ -73,14 +79,19 @@ function insertOrderToDatabase(db_name, data) {
     row.push("OPEN"); //status
     row.push("NOBODY"); // assigned
 
-    row.push(geoAddressFrom['latitude']); // addressFromLatitude
+    row.push(geoAddressFrom['latitude']);   // addressFromLatitude
     row.push(geoAddressFrom['longitude']);  // addressFromLongitude
-    row.push(geoAddressTo['latitude']);  // addressToLatitude
-    row.push(geoAddressTo['longitude']); // addressToLongitude
+    row.push(geoAddressTo['latitude']);     // addressToLatitude
+    row.push(geoAddressTo['longitude']);    // addressToLongitude
+
+    addEventToCalendar(calendar, geoAddressFrom['formatted'],  geoAddressTo['formatted'],
+                       data['bookingTime'], data['orderId']);
     return insert(table, row);
 }
 
-function addEventToCalendar() {
+function addEventToCalendar(calendar, from, to, bookingTime, orderId) {
+    event_description = "From '" + from + "' to '" + to + "' (" + orderId + ")";
+    var event = calendar.createEvent(event_description, new Date(), new Date(bookingTime));
 }
 
 function geocodeAddress(address) {
@@ -101,8 +112,8 @@ function buildOrderJSON(headers, row) {
     return result;
 }
 
-function getOrderById(db_name, orderId) {
-    var table = getTable(db_name);
+function getOrderById(environment, orderId) {
+    var table = getTable(environment);
     var values = table.getDataRange().getValues();
     var headers = values[0];
 
@@ -161,6 +172,10 @@ function insert(table, row) {
 function setup() {
     var testingDB = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/121dxHWUAqiKaDR7oD4rn9M-QlxG_k6rgkg28jNpDTv4/edit');
     var productionDB = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/1QD-cIBTBLBbdrxV-oWgruTGP8XqdysQWW-U9KoMUsKE/edit');
+    var testingCalendar = '3983qmc7vmt04ok21pvcofdeg0@group.calendar.google.com';
+    var productionCalendar = '3mfdarqlfcm0rccip8kh0leq3k@group.calendar.google.com';
+    SCRIPT_PROP.setProperty("testingCalendar", testingCalendar);
+    SCRIPT_PROP.setProperty("productionCalendar", productionCalendar);
     SCRIPT_PROP.setProperty("testing", testingDB.getId());
     SCRIPT_PROP.setProperty("production", productionDB.getId());
 
