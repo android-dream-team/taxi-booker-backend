@@ -88,70 +88,56 @@ function buildOrderJSON(headers, row) {
 
 function getOrderById(db_name, orderId) {
     var table = getTable(db_name);
-    var order = false;
     var values = table.getDataRange().getValues();
     var headers = values[0];
 
+    var row = findRowByOrderId(table, orderId);
+
+    if (row)
+        return buildOrderJSON(headers, values[row]);
+    else
+        return null;
+
+}
+
+function findRowByOrderId(table, orderId) {
+    var values = table.getDataRange().getValues();
     for (var row in values) {
         for (var col in values[row])
           if (values[row][col] == orderId)
-              return buildOrderJSON(headers, values[row]);
+              return row;
 
    }
-    return order;
 }
 
-function insert(table, row) {
+function getColumnIndex(headers, column_name) {
+     return headers.indexOf(column_name);
+}
+
+function setCellValue(table, row, column, value) {
+    //setCellValue(table, row, getColumnIndex(headers, "phoneNumber"), "new-phone-number");
+
     try {
         var lock = LockService.getScriptLock();
-        lock.waitLock(3000);
-        table.appendRow(row);
+        lock.waitLock(1000);
+        table.getRange(parseInt(row) + 1, parseInt(column) + 1).setValue(value); // main thing
         return True;
     } catch (e) {
         return returnError(e);
     } finally { //release lock
         lock.releaseLock();
     }
+
 }
 
-function legacy(e) {
-    // shortly after my original solution Google announced the LockService[1]
-    // this prevents concurrent access overwritting data
-    // [1] http://googleappsdeveloper.blogspot.co.uk/2011/10/concurrency-and-google-apps-script.html
-    // we want a public lock, one that locks for all invocations
-    //  var lock = LockService.getPublicLock();
-    var doc = SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
-
-    // next set where we write the data - you could write to multiple/alternate destinations
-    var sheet = doc.getActiveSheet();
-
-    // we'll assume header is in row 1 but you can override with header_row in GET/POST data
-    var row = [];
-    var data = JSON.stringify(e.parameter);
-    row.push(new Date());
-    row.push(data);
-    testSetup += 1;
-    // more efficient to set values as [][] array than individually
-
+function insert(table, row) {
     try {
         var lock = LockService.getScriptLock();
-        lock.waitLock(3000);
-        sheet.appendRow(row);
-        // return json success results
-        return ContentService
-            .createTextOutput(JSON.stringify({
-                "result": "success",
-                "testSetup": testSetup
-            }))
-            .setMimeType(ContentService.MimeType.JSON);
+        lock.waitLock(1000);
+        table.appendRow(row);  //main thing
+        return True;
     } catch (e) {
-        // if error return this
-        return ContentService
-            .createTextOutput(JSON.stringify({
-                "result": "error",
-                "error": e
-            }))
-            .setMimeType(ContentService.MimeType.JSON);
+        return returnError(e);
     } finally { //release lock
         lock.releaseLock();
     }
