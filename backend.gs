@@ -29,7 +29,7 @@ function getOrder(data) {
     if (order)
         return returnResponse("success", order);
     else
-        return returnResponse("Order with orderId='" + data['orderId'] + "' not found");
+        return returnError("Order with orderId='" + data['orderId'] + "' not found");
 }
 
 function handleResponse(e) {
@@ -65,16 +65,31 @@ function insertOrderToDatabase(db_name, data) {
     row.push(new Date());
     row.push(data['phoneNumber']);
     row.push(data['orderId']);
-    row.push(data['addressFrom']);
-    row.push(data['addressTo']);
+    var geoAddressFrom = geocodeAddress(data['addressFrom']);
+    var geoAddressTo = geocodeAddress(data['addressTo']);
+    row.push(geoAddressFrom['formatted']);
+    row.push(geoAddressTo['formatted']);
     row.push(data['bookingTime']);
     row.push("OPEN"); //status
-    // assigned
-    // addressFromLongitude
-    // addressFromLatitude
-    // addressToLongitude
-    // addressToLatitude
+    row.push("NOBODY"); // assigned
+
+    row.push(geoAddressFrom['latitude']); // addressFromLatitude
+    row.push(geoAddressFrom['longitude']);  // addressFromLongitude
+    row.push(geoAddressTo['latitude']);  // addressToLatitude
+    row.push(geoAddressTo['longitude']); // addressToLongitude
     return insert(table, row);
+}
+
+function addEventToCalendar() {
+}
+
+function geocodeAddress(address) {
+  var response = Maps.newGeocoder().geocode(address);
+  point = response.results[0];
+  result = {'latitude': point.geometry.location.lat.toString(),
+            'longitude': point.geometry.location.lng.toString(),
+            'formatted': point.formatted_address}
+  return result;
 }
 
 function buildOrderJSON(headers, row) {

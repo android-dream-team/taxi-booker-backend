@@ -1,5 +1,6 @@
 # Created by .ignore support plugin (hsz.mobi)
 ### AppEngine template
+/backend.gs
 # Google App Engine generated folder
 appengine-generated/
 .idea/
