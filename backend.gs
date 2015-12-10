@@ -5,18 +5,31 @@ function doGet(e) {
     return handleResponse(e);
 }
 
-
-function addOrder(data) {
+function getEnvironment(data) {
     var environment = data['env'];
     if (!environment)
       environment = 'testing';
-    if (insertOrderToDatabase(environment, data))
+    return environment;
+}
+
+function getTable(db_name) {
+    var db = SpreadsheetApp.openById(SCRIPT_PROP.getProperty(db_name));
+    var table = db.getActiveSheet();
+    return table;
+}
+
+function addOrder(data) {
+    if (insertOrderToDatabase(getEnvironment(data), data))
       return returnResponse("success",
-                            "Your order " + data['orderId'] + " has been added!");
+                            "Your order '" + data['orderId'] + "' has been added!");
 }
 
 function getOrder(data) {
-    return returnResponse("success", "Here is the requested order");
+    var order = getOrderById(getEnvironment(data), data['orderId']);
+    if (order)
+        return returnResponse("success", order);
+    else
+        return returnResponse("Order with orderId='" + data['orderId'] + "' not found");
 }
 
 function handleResponse(e) {
@@ -47,8 +60,7 @@ function returnError(error) {
 }
 
 function insertOrderToDatabase(db_name, data) {
-    var db = SpreadsheetApp.openById(SCRIPT_PROP.getProperty(db_name));
-    var table = db.getActiveSheet();
+    var table = getTable(db_name);
     var row = [];
     row.push(new Date());
     row.push(data['phoneNumber']);
@@ -63,6 +75,30 @@ function insertOrderToDatabase(db_name, data) {
     // addressToLongitude
     // addressToLatitude
     return insert(table, row);
+}
+
+function buildOrderJSON(headers, row) {
+    // map headers and rows
+    var result = row.reduce(function(result, field, index) {
+        result[headers[index]] = field;
+        return result
+        }, {});
+    return result;
+}
+
+function getOrderById(db_name, orderId) {
+    var table = getTable(db_name);
+    var order = false;
+    var values = table.getDataRange().getValues();
+    var headers = values[0];
+
+    for (var row in values) {
+        for (var col in values[row])
+          if (values[row][col] == orderId)
+              return buildOrderJSON(headers, values[row]);
+
+   }
+    return order;
 }
 
 function insert(table, row) {
